@@ -4,38 +4,27 @@ import SwiftData
 struct WeatherRowView: View {
     @Bindable var city: City
 
-    private func iconURL(for code: String?) -> URL? {
-        guard let code = code else { return nil }
-        return URL(string: "https://openweathermap.org/img/wn/\(code)@2x.png")
-    }
-
     var body: some View {
         HStack {
-            // Weather icon
-            if let url = iconURL(for: city.icon) {
+            if let icon = city.icon, let url = URL(string: "https://openweathermap.org/img/wn/\(icon)@2x.png") {
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case .empty:
                         ProgressView()
                             .frame(width: 44, height: 44)
-                    case .success(let img):
-                        img.resizable()
-                            .scaledToFit()
-                            .frame(width: 44, height: 44)
+                    case .success(let image):
+                        image.resizable().scaledToFit().frame(width: 44, height: 44)
                     case .failure:
                         Image(systemName: "cloud")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 44, height: 44)
+                            .resizable().scaledToFit().frame(width: 44, height: 44)
                     @unknown default:
                         EmptyView()
                     }
                 }
             } else {
-                Image(systemName: "cloud")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 44, height: 44)
+                Image(systemName: "cloud.sun.fill")
+                    .resizable().scaledToFit().frame(width: 44, height: 44)
+                    .foregroundColor(.accentColor)
             }
 
             VStack(alignment: .leading) {
@@ -46,14 +35,23 @@ struct WeatherRowView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
+                HStack(spacing: 12) {
+                    Text(city.temperature != nil ? String(format: "%.0f°", city.temperature!) : "—")
+                        .font(.title2)
+                    Text(city.temperatureMax != nil ? "H: \(String(format: "%.0f°", city.temperatureMax!))" : "H: —")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(city.temperatureMin != nil ? "L: \(String(format: "%.0f°", city.temperatureMin!))" : "L: —")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    if let wind = city.windSpeed {
+                        Text(String(format: "· %.1f m/s", wind))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
             }
             Spacer()
-            if let temp = city.temperature {
-                Text(String(format: "%.0f°", temp))
-                    .font(.title2)
-            } else {
-                ProgressView()
-            }
         }
         .padding(.vertical, 8)
     }
