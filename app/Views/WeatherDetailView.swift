@@ -47,7 +47,6 @@ struct WeatherDetailView: View {
             }
 
             HStack(spacing: 24) {
-                // Show placeholders (—) when values are not yet available
                 VStack { Text("Max").font(.caption); Text(city.temperatureMax != nil ? String(format: "%.0f°", city.temperatureMax!) : "—") }
                 VStack { Text("Min").font(.caption); Text(city.temperatureMin != nil ? String(format: "%.0f°", city.temperatureMin!) : "—") }
                 VStack { Text("Humidity").font(.caption); Text(city.humidity != nil ? "\(city.humidity!)%" : "—") }
@@ -65,20 +64,22 @@ struct WeatherDetailView: View {
 
             Button(action: {
                 Task {
-                    // start a short 1.5s animation on the icon for visible feedback
-                    isRefreshing = true
-                    animateIcon = true
-
-                    // Stop the icon animation after ~1.5s regardless of network
-                    Task {
-                        try? await Task.sleep(nanoseconds: 1_500_000_000)
-                        await MainActor.run {
-                            animateIcon = false
-                        }
+                    // Start visible refresh state and ensure it lasts at least 3 seconds
+                    await MainActor.run {
+                        isRefreshing = true
+                        animateIcon = true
                     }
 
-                    await viewModel.refresh(city: city)
-                    isRefreshing = false
+                    async let networkRefresh: Void = viewModel.refresh(city: city)
+                    async let minimumDelay: Void = Task.sleep(nanoseconds: 3_000_000_000)
+
+                    // Wait for both the network call and the minimum delay
+                    _ = await (try? await networkRefresh, try? await minimumDelay)
+
+                    await MainActor.run {
+                        animateIcon = false
+                        isRefreshing = false
+                    }
                 }
             }) {
                 HStack(spacing: 10) {
@@ -97,36 +98,11 @@ struct WeatherDetailView: View {
                 .padding(.vertical, 10)
             }
             .buttonStyle(.borderedProminent)
+            .disabled(isRefreshing)
             .tint(.accentColor)
             .padding(.bottom)
         }
         .padding()
         .navigationTitle(city.name)
-        .onAppear {
-            // If key fields are missing or data is older than 10 minutes, auto-refresh
-            let needsData: Bool = {
-                if city.temperatureMin == nil || city.temperatureMax == nil || city.humidity == nil || city.windSpeed == nil {
-                    return true
-                }
-                if let last = city.lastUpdated {
-                    return Date().timeIntervalSince(last) > 600 // older than 10 minutes
-                }
-                return true
-            }()
-
-            if needsData {
-                Task {
-                    isRefreshing = true
-                    animateIcon = true
-                    // keep icon animation visible for short period
-                    Task {
-                        try? await Task.sleep(nanoseconds: 1_500_000_000)
-                        await MainActor.run { animateIcon = false }
-                    }
-                    await viewModel.refresh(city: city)
-                    await MainActor.run { isRefreshing = false }
-                }
-            }
-        }
     }
 }
