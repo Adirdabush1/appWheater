@@ -8,6 +8,7 @@ struct WeatherListView: View {
 
     @State private var showingImportSheet = false
     @State private var importText: String = ""
+    @State private var reseedCompleted: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -80,8 +81,7 @@ struct WeatherListView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         Task {
-                            let vm = viewModel
-                            await vm.resetAndReseed()
+                            await viewModel.resetAndReseed()
                             reseedCompleted = true
                         }
                     }) {
