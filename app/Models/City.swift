@@ -1,9 +1,8 @@
 import Foundation
 import SwiftData
-import Combine
 
 @Model
-final class City: ObservableObject {
+final class City {
     @Attribute(.unique) var id: String = UUID().uuidString
     var name: String
     var country: String?
@@ -13,6 +12,10 @@ final class City: ObservableObject {
     // Cached weather fields
     var lastUpdated: Date?
     var temperature: Double?
+    var temperatureMin: Double?
+    var temperatureMax: Double?
+    var humidity: Int?
+    var windSpeed: Double?
     var condition: String?
     var icon: String?
 

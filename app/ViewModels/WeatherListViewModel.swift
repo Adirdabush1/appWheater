@@ -136,6 +136,10 @@ final class WeatherListViewModel: ObservableObject {
         do {
             let resp = try await api.fetchCurrentWeather(lat: city.lat, lon: city.lon)
             city.temperature = resp.main.temp
+            city.temperatureMin = resp.main.temp_min ?? city.temperatureMin
+            city.temperatureMax = resp.main.temp_max ?? city.temperatureMax
+            city.humidity = resp.main.humidity
+            city.windSpeed = resp.wind?.speed
             city.condition = resp.weather.first?.description
             city.icon = resp.weather.first?.icon
             city.lastUpdated = Date()
@@ -230,26 +234,5 @@ final class WeatherListViewModel: ObservableObject {
         if let recheck = try? ctx.fetch(FetchDescriptor<City>()), recheck.isEmpty {
             await seedDefaultCities()
         }
-    }
-
-    /// Deletes all saved cities and re-seeds defaults (useful for testing / UI reload).
-    func resetAndReseed() async {
-        guard let ctx = modelContext else { return }
-        isLoading = true
-        errorMessage = nil
-        do {
-            let fetch = FetchDescriptor<City>()
-            let existing = try ctx.fetch(fetch)
-            for c in existing {
-                ctx.delete(c)
-            }
-            try ctx.save()
-            // Now loadIfNeeded will seed defaults because store is empty
-            await loadIfNeeded()
-        } catch {
-            print("Failed to reset cities: \(error)")
-            errorMessage = "Failed to reset cities: \(error)"
-        }
-        isLoading = false
     }
 }

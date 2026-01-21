@@ -4,6 +4,7 @@ import SwiftData
 struct WeatherDetailView: View {
     @ObservedObject var city: City
     @ObservedObject var viewModel: WeatherListViewModel
+    @State private var isRefreshing = false
 
     var body: some View {
         VStack(spacing: 12) {
@@ -18,6 +19,22 @@ struct WeatherDetailView: View {
                 Text(condition.capitalized)
             }
 
+            HStack(spacing: 20) {
+                if let tmax = city.temperatureMax {
+                    VStack { Text("Max").font(.caption); Text(String(format: "%.0f°", tmax)) }
+                }
+                if let tmin = city.temperatureMin {
+                    VStack { Text("Min").font(.caption); Text(String(format: "%.0f°", tmin)) }
+                }
+                if let hum = city.humidity {
+                    VStack { Text("Humidity").font(.caption); Text("\(hum)%") }
+                }
+                if let wind = city.windSpeed {
+                    VStack { Text("Wind").font(.caption); Text(String(format: "%.1f m/s", wind)) }
+                }
+            }
+            .font(.headline)
+
             if let updated = city.lastUpdated {
                 Text("Last updated: \(updated, style: .time)")
                     .font(.caption)
@@ -27,9 +44,14 @@ struct WeatherDetailView: View {
             Spacer()
 
             Button(action: {
-                Task { await viewModel.refresh(city: city) }
+                Task {
+                    isRefreshing = true
+                    await viewModel.refresh(city: city)
+                    isRefreshing = false
+                }
             }) {
                 HStack {
+                    if isRefreshing { ProgressView().progressViewStyle(CircularProgressViewStyle()) }
                     Image(systemName: "arrow.clockwise")
                     Text("Refresh")
                 }
