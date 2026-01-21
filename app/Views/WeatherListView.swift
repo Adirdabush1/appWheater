@@ -8,7 +8,6 @@ struct WeatherListView: View {
 
     @State private var showingImportSheet = false
     @State private var importText: String = ""
-    @State private var reseedCompleted: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -59,7 +58,7 @@ struct WeatherListView: View {
                         .padding(.vertical, 8)
                 }
             }
-            .navigationTitle("Weather \(viewModel.cities.count > 0 ? "(\(viewModel.cities.count))" : "")")
+            .navigationTitle("Weather")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { showingImportSheet = true }) {
@@ -81,7 +80,8 @@ struct WeatherListView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         Task {
-                            await viewModel.resetAndReseed()
+                            let vm = viewModel
+                            await vm.resetAndReseed()
                             reseedCompleted = true
                         }
                     }) {
@@ -89,11 +89,6 @@ struct WeatherListView: View {
                     }
                     .disabled(viewModel.isLoading)
                 }
-            }
-            .alert("Reseed complete", isPresented: $reseedCompleted) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("\(viewModel.cities.count) cities available now.")
             }
             .sheet(isPresented: $showingImportSheet) {
                 NavigationStack {
