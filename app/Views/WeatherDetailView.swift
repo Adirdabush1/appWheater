@@ -47,18 +47,11 @@ struct WeatherDetailView: View {
             }
 
             HStack(spacing: 24) {
-                if let tmax = city.temperatureMax {
-                    VStack { Text("Max").font(.caption); Text(String(format: "%.0f°", tmax)) }
-                }
-                if let tmin = city.temperatureMin {
-                    VStack { Text("Min").font(.caption); Text(String(format: "%.0f°", tmin)) }
-                }
-                if let hum = city.humidity {
-                    VStack { Text("Humidity").font(.caption); Text("\(hum)%") }
-                }
-                if let wind = city.windSpeed {
-                    VStack { Text("Wind").font(.caption); Text(String(format: "%.1f m/s", wind)) }
-                }
+                // Show placeholders (—) when values are not yet available
+                VStack { Text("Max").font(.caption); Text(city.temperatureMax != nil ? String(format: "%.0f°", city.temperatureMax!) : "—") }
+                VStack { Text("Min").font(.caption); Text(city.temperatureMin != nil ? String(format: "%.0f°", city.temperatureMin!) : "—") }
+                VStack { Text("Humidity").font(.caption); Text(city.humidity != nil ? "\(city.humidity!)%" : "—") }
+                VStack { Text("Wind").font(.caption); Text(city.windSpeed != nil ? String(format: "%.1f m/s", city.windSpeed!) : "—") }
             }
             .font(.headline)
 
@@ -109,5 +102,31 @@ struct WeatherDetailView: View {
         }
         .padding()
         .navigationTitle(city.name)
+        .onAppear {
+            // If key fields are missing or data is older than 10 minutes, auto-refresh
+            let needsData: Bool = {
+                if city.temperatureMin == nil || city.temperatureMax == nil || city.humidity == nil || city.windSpeed == nil {
+                    return true
+                }
+                if let last = city.lastUpdated {
+                    return Date().timeIntervalSince(last) > 600 // older than 10 minutes
+                }
+                return true
+            }()
+
+            if needsData {
+                Task {
+                    isRefreshing = true
+                    animateIcon = true
+                    // keep icon animation visible for short period
+                    Task {
+                        try? await Task.sleep(nanoseconds: 1_500_000_000)
+                        await MainActor.run { animateIcon = false }
+                    }
+                    await viewModel.refresh(city: city)
+                    await MainActor.run { isRefreshing = false }
+                }
+            }
+        }
     }
 }
