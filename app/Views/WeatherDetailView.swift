@@ -5,10 +5,17 @@ struct WeatherDetailView: View {
     @Bindable var city: City
     @ObservedObject var viewModel: WeatherListViewModel
     @State private var isRefreshing = false
-    @State private var animateIcon = false
+    @StateObject private var network = NetworkMonitor.shared
 
     var body: some View {
         VStack(spacing: 12) {
+            if !network.isConnected {
+                Text("Offline — showing last saved data")
+                    .frame(maxWidth: .infinity)
+                    .padding(8)
+                    .background(Color.yellow.opacity(0.2))
+            }
+
             Text(city.name).font(.largeTitle).bold()
 
             if let temp = city.temperature {
@@ -24,25 +31,17 @@ struct WeatherDetailView: View {
                         AsyncImage(url: url) { phase in
                             switch phase {
                             case .empty:
-                                ProgressView()
-                                    .frame(width: 56, height: 56)
+                                ProgressView().frame(width: 56, height: 56)
                             case .success(let img):
-                                img.resizable()
-                                    .scaledToFit()
-                                    .frame(width: 56, height: 56)
-                                    .rotationEffect(animateIcon ? Angle.degrees(360) : Angle.degrees(0))
-                                    .scaleEffect(animateIcon ? 1.05 : 1.0)
-                                    .animation(.linear(duration: 1.2), value: animateIcon)
+                                img.resizable().scaledToFit().frame(width: 56, height: 56)
                             case .failure:
-                                Image(systemName: "cloud")
-                                    .resizable().scaledToFit().frame(width: 56, height: 56)
+                                Image(systemName: "cloud").resizable().scaledToFit().frame(width: 56, height: 56)
                             @unknown default:
                                 EmptyView()
                             }
                         }
                     }
-                    Text(condition.capitalized)
-                        .font(.title3)
+                    Text(condition.capitalized).font(.title3)
                 }
             }
 
@@ -64,35 +63,27 @@ struct WeatherDetailView: View {
 
             Button(action: {
                 Task {
-                    // Start visible refresh state and ensure it lasts at least 3 seconds
                     await MainActor.run {
                         isRefreshing = true
-                        animateIcon = true
                     }
 
                     async let networkRefresh: Void = viewModel.refresh(city: city)
-                    async let minimumDelay: Void = Task.sleep(nanoseconds: 3_000_000_000)
+                    // minimum visible refresh delay: 1.5 seconds
+                    async let minimumDelay: Void = Task.sleep(nanoseconds: 1_500_000_000)
 
-                    // Wait for both the network call and the minimum delay
                     _ = await (try? await networkRefresh, try? await minimumDelay)
 
                     await MainActor.run {
-                        animateIcon = false
                         isRefreshing = false
                     }
                 }
             }) {
                 HStack(spacing: 10) {
                     if isRefreshing {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle())
-                            .frame(width: 18, height: 18)
+                        ProgressView().frame(width: 18, height: 18)
                     }
-                    Image(systemName: "arrow.clockwise")
-                        .imageScale(.medium)
-                        .foregroundColor(.white)
-                    Text("Refresh")
-                        .foregroundColor(.white)
+                    Image(systemName: "arrow.clockwise").imageScale(.medium).foregroundColor(.white)
+                    Text("Refresh").foregroundColor(.white)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
@@ -104,5 +95,10 @@ struct WeatherDetailView: View {
         }
         .padding()
         .navigationTitle(city.name)
+        .alert("Error", isPresented: Binding(get: { viewModel.errorMessage != nil }, set: { if !$0 { viewModel.errorMessage = nil } })) {
+            Button("OK") { viewModel.errorMessage = nil }
+        } message: {
+            Text(viewModel.errorMessage ?? "Unknown error")
+        }
     }
 }
