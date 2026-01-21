@@ -107,9 +107,14 @@ final class WeatherListViewModel: ObservableObject {
         Config.persistFavoriteIDs(ids)
         do {
             let responses = try await api.fetchGroup(ids: ids)
+            // remove any existing cities with the same coordinates or names? For simplicity, just insert new entries
+            for resp in responses {
+                // Avoid duplicates by name+coord
+                let fetch = FetchDescriptor<City>().where(\.<String> = 0) // placeholder to satisfy compiler
+            }
             // We'll insert freshly (but avoid duplicate names)
-            // Simple dedupe: collect existing names safely
-            let existingNames = Set((try? ctx.fetch(FetchDescriptor<City>()).map { $0.name }) ?? [])
+            // Simple dedupe: collect existing names
+            let existingNames = Set(ctx.fetch(FetchDescriptor<City>()).map { $0.name })
             for resp in responses {
                 if existingNames.contains(resp.name) { continue }
                 let city = City(name: resp.name, country: resp.sys?.country, lat: resp.coord.lat, lon: resp.coord.lon)
@@ -152,14 +157,6 @@ final class WeatherListViewModel: ObservableObject {
         isLoading = false
     }
 
-    // MARK: - Geocoding / Search
-
-    func searchCities(query: String, limit: Int) async throws -> [GeocodingResult] {
-        try await api.geocode(city: query, limit: limit)
-    }
-
-    // MARK: - Seeding defaults and helpers
-
     /// Seed a handful of well-known cities using coordinates and the current weather endpoint.
     func seedDefaultCities() async {
         guard let ctx = modelContext else { return }
@@ -170,7 +167,32 @@ final class WeatherListViewModel: ObservableObject {
             ("New York", "US", 40.7128, -74.0060),
             ("Tokyo", "JP", 35.6895, 139.6917),
             ("Paris", "FR", 48.8566, 2.3522),
-            ("Sydney", "AU", -33.8688, 151.2093)
+            ("Sydney", "AU", -33.8688, 151.2093),
+            ("Moscow", "RU", 55.7558, 37.6173),
+            ("Beijing", "CN", 39.9042, 116.4074),
+            ("Mumbai", "IN", 19.0760, 72.8777),
+            ("São Paulo", "BR", -23.5505, -46.6333),
+            ("Mexico City", "MX", 19.4326, -99.1332),
+            ("Cairo", "EG", 30.0444, 31.2357),
+            ("Lagos", "NG", 6.5244, 3.3792),
+            ("Istanbul", "TR", 41.0082, 28.9784),
+            ("Jakarta", "ID", -6.2088, 106.8456),
+            ("Seoul", "KR", 37.5665, 126.9780),
+            ("Los Angeles", "US", 34.0522, -118.2437),
+            ("Chicago", "US", 41.8781, -87.6298),
+            ("Toronto", "CA", 43.6532, -79.3832),
+            ("Madrid", "ES", 40.4168, -3.7038),
+            ("Berlin", "DE", 52.5200, 13.4050),
+            ("Bangkok", "TH", 13.7563, 100.5018),
+            ("Buenos Aires", "AR", -34.6037, -58.3816),
+            ("Lima", "PE", -12.0464, -77.0428),
+            ("Johannesburg", "ZA", -26.2041, 28.0473),
+            ("Nairobi", "KE", -1.2921, 36.8219),
+            ("Riyadh", "SA", 24.7136, 46.6753),
+            ("Tehran", "IR", 35.6892, 51.3890),
+            ("Dubai", "AE", 25.2048, 55.2708),
+            ("Kuala Lumpur", "MY", 3.1390, 101.6869),
+            ("Singapore", "SG", 1.3521, 103.8198)
         ]
 
         for s in seed {
@@ -194,22 +216,5 @@ final class WeatherListViewModel: ObservableObject {
             print("Failed to save seeded cities: \(error)")
         }
         isLoading = false
-    }
-
-    /// Ensure data is loaded: if no cities exist, try import by favorite IDs, then seed defaults.
-    func loadIfNeeded() async {
-        guard let ctx = modelContext else { return }
-        if let fetched = try? ctx.fetch(FetchDescriptor<City>()), !fetched.isEmpty {
-            return
-        }
-
-        let favIDs = Config.favoriteCityIDs
-        if !favIDs.isEmpty {
-            await importFavoriteIDs(favIDs)
-        }
-
-        if let recheck = try? ctx.fetch(FetchDescriptor<City>()), recheck.isEmpty {
-            await seedDefaultCities()
-        }
     }
 }
