@@ -13,7 +13,7 @@ struct appApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Item.self,
-            City.self, // include City in the schema so weather cities are stored and loaded
+            City.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -26,8 +26,7 @@ struct appApp: App {
 
     var body: some Scene {
         WindowGroup {
-            // Show the WeatherListView as the app's main screen
-            WeatherListView()
+            ContentView()
         }
         .modelContainer(sharedModelContainer)
     }
