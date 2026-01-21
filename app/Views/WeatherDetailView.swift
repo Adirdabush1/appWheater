@@ -69,13 +69,13 @@ struct WeatherDetailView: View {
                     await MainActor.run { isRefreshing = true }
 
                     // minimum visible refresh delay (1.5s)
-                    async let minimumDelay = Task.sleep(nanoseconds: 1_500_000_000)
+                    async let minimumDelay: Void = Task.sleep(nanoseconds: 1_500_000_000)
 
-                    // Refresh via viewModel (it's MainActor-isolated)
+                    // Refresh via viewModel (MainActor-isolated)
                     await viewModel.refresh(city: city)
 
-                    // Wait for the minimum delay to finish as well
-                    _ = await minimumDelay
+                    // Wait for minimum delay to finish (ignore cancellation)
+                    _ = try? await minimumDelay
 
                     await MainActor.run { isRefreshing = false }
                 }
