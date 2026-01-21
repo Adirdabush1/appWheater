@@ -5,13 +5,30 @@
 //  Created by rentamac on 1/20/26.
 //
 
-import Testing
+import XCTest
 @testable import app
 
-struct appTests {
+final class WeatherDecodingTests: XCTestCase {
+    func testCurrentWeatherDecoding() throws {
+        let json = """
+        {
+          "coord": { "lon": -0.13, "lat": 51.51 },
+          "weather": [ { "id": 800, "main": "Clear", "description": "clear sky", "icon": "01d" } ],
+          "main": { "temp": 15.5, "feels_like": 15.0, "temp_min": 14.0, "temp_max": 16.0, "humidity": 60 },
+          "wind": { "speed": 3.6, "deg": 200 },
+          "dt": 1620918000,
+          "sys": { "country": "GB" },
+          "name": "London"
+        }
+        """.data(using: .utf8)!
 
-    @Test func example() async throws {
-        // Write your test here and use APIs like `#expect(...)` to check expected conditions.
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        let resp = try decoder.decode(CurrentWeatherResponse.self, from: json)
+
+        XCTAssertEqual(resp.name, "London")
+        XCTAssertEqual(resp.coord.lat, 51.51)
+        XCTAssertEqual(resp.main.temp, 15.5)
+        XCTAssertEqual(resp.weather.first?.icon, "01d")
     }
-
 }
