@@ -18,6 +18,15 @@ How to run
 ----------
 1. Open the Xcode project: `app/app.xcodeproj`.
 2. Update the OpenWeather API key in `app/Network/Config.swift` if needed (currently set to the provided key).
+	- Provide your OpenWeather API key via a non-committed `Secrets.plist` or `Info.plist`.
+
+Secrets setup
+-------------
+1. Create a file named `Secrets.plist` in the app bundle root (do not commit this file).
+2. Add a key `OPENWEATHER_API_KEY` with your API key as a String value.
+3. The app will read the key from `Secrets.plist` first, and fall back to `Info.plist` if not present.
+
+Note: `Secrets.plist` is included in `.gitignore` to prevent accidental commits of sensitive keys.
 3. Build & run on a Simulator or device (iOS 17+/Xcode 15+ recommended).
 
 Notes about architecture

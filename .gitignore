@@ -1,0 +1,11 @@
+# Xcode
+.vscode/
+DerivedData/
+build/
+*.xcworkspace
+
+# Secrets
+Secrets.plist
+
+# macOS
+.DS_Store

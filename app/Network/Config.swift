@@ -3,8 +3,29 @@ import Foundation
 /// Centralized configuration for network keys and endpoints.
 /// Replace the API key here if you want to keep it out of Info.plist.
 struct Config {
-    // OpenWeatherMap API key (provided by user)
-    static let openWeatherAPIKey = "9aa605d3d2f5f7db65e5f970e7e2d163"
+    // OpenWeatherMap API key — load from Secrets.plist (gitignored) or Info.plist.
+    static var openWeatherAPIKey: String {
+        // 1. Try Secrets.plist at app bundle root (untracked by git)
+        if let url = Bundle.main.url(forResource: "Secrets", withExtension: "plist"),
+           let data = try? Data(contentsOf: url),
+           let dict = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+           let key = dict["OPENWEATHER_API_KEY"] as? String,
+           !key.isEmpty {
+            return key
+        }
+
+        // 2. Fallback to Info.plist entry if present
+        if let infoKey = Bundle.main.object(forInfoDictionaryKey: "OPENWEATHER_API_KEY") as? String,
+           !infoKey.isEmpty {
+            return infoKey
+        }
+
+        // 3. As a last resort, return empty string and log a warning
+        #if DEBUG
+        print("Warning: OPENWEATHER_API_KEY not found in Secrets.plist or Info.plist")
+        #endif
+        return ""
+    }
     
     static let favoriteCityIDsUserDefaultsKey = "OPENWEATHER_FAVORITE_CITY_IDS"
     
