@@ -9,8 +9,10 @@ struct WeatherDetailView: View {
     var body: some View {
         VStack(spacing: 12) {
             Text(city.name).font(.largeTitle).bold()
+
             if let temp = city.temperature {
-                Text(String(format: "%.0f°", temp)).font(.system(size: 48))
+                Text(String(format: "%.0f°", temp))
+                    .font(.system(size: 48))
             } else {
                 ProgressView()
             }
@@ -51,12 +53,22 @@ struct WeatherDetailView: View {
                 }
             }) {
                 HStack {
-                    if isRefreshing { ProgressView().progressViewStyle(CircularProgressViewStyle()) }
+                    if isRefreshing {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                            .frame(width: 18, height: 18)
+                    }
                     Image(systemName: "arrow.clockwise")
+                        .imageScale(.medium)
+                        .foregroundColor(.white)
                     Text("Refresh")
+                        .foregroundColor(.white)
                 }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
             }
             .buttonStyle(.borderedProminent)
+            .tint(.accentColor)
             .padding(.bottom)
         }
         .padding()
