@@ -14,10 +14,10 @@ final class City {
     var temperature: Double?
     var temperatureMin: Double?
     var temperatureMax: Double?
-    var humidity: Int?
-    var windSpeed: Double?
     var condition: String?
     var icon: String?
+    var humidity: Int?
+    var windSpeed: Double?
 
     init(name: String, country: String? = nil, lat: Double, lon: Double) {
         self.name = name
