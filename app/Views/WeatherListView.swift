@@ -29,7 +29,7 @@ struct WeatherListView: View {
                             .font(.title2)
                             .bold()
 
-                        Text("Tap + to add a city, or import your favorite city IDs from OpenWeather.")
+                        Text("Tap + to add a city.")
                             .font(.subheadline)
                             .multilineTextAlignment(.center)
                             .foregroundColor(.secondary)
@@ -57,8 +57,8 @@ struct WeatherListView: View {
             }
             .navigationTitle("Weather")
             .toolbar {
+                // Show spinner while loading; otherwise show refresh button
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    // Show a spinner in the nav bar while loading, otherwise show the refresh button
                     if viewModel.isLoading {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle())
@@ -66,7 +66,6 @@ struct WeatherListView: View {
                         Button(action: { Task { await viewModel.refreshAll() } }) {
                             Image(systemName: "arrow.clockwise")
                         }
-                        .disabled(viewModel.isLoading)
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
