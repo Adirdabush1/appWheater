@@ -66,22 +66,16 @@ struct WeatherDetailView: View {
 
             Button(action: {
                 Task {
-                    // Set visible refreshing state on main actor
                     await MainActor.run { isRefreshing = true }
 
-                    // Start a minimum visible delay in parallel (1.5s)
-                    async let minimumDelay: Void = Task.sleep(nanoseconds: 1_500_000_000)
+                    // minimum visible refresh delay (1.5s)
+                    async let minimumDelay = Task.sleep(nanoseconds: 1_500_000_000)
 
-                    // Call the view model refresh on the MainActor to avoid passing the City across concurrency
-                    await MainActor.run {
-                        // call is async but we're already awaiting it here
-                        Task {
-                            await viewModel.refresh(city: city)
-                        }
-                    }
+                    // Refresh via viewModel (it's MainActor-isolated)
+                    await viewModel.refresh(city: city)
 
-                    // Wait for the minimum delay to finish
-                    _ = await (try? await minimumDelay)
+                    // Wait for the minimum delay to finish as well
+                    _ = await minimumDelay
 
                     await MainActor.run { isRefreshing = false }
                 }
@@ -97,13 +91,12 @@ struct WeatherDetailView: View {
                 .padding(.vertical, 10)
             }
             .buttonStyle(.borderedProminent)
-            .disabled(isRefreshing)
+            .disabled(isRefreshing || viewModel.isLoading)
             .tint(.accentColor)
             .padding(.bottom)
         }
         .padding()
         .navigationTitle(city.name)
-        // Show an alert if the view model reports an error
         .alert("Error", isPresented: Binding(get: { viewModel.errorMessage != nil }, set: { if !$0 { viewModel.errorMessage = nil } })) {
             Button("OK") { viewModel.errorMessage = nil }
         } message: {

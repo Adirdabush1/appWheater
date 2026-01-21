@@ -55,8 +55,8 @@ final class WeatherListViewModel: ObservableObject {
             do {
                 let resp = try await api.fetchCurrentWeather(lat: city.lat, lon: city.lon)
                 city.temperature = resp.main.temp
-                city.temperatureMin = resp.main.temp_min ?? city.temperatureMin
-                city.temperatureMax = resp.main.temp_max ?? city.temperatureMax
+                city.temperatureMin = resp.main.temp_min
+                city.temperatureMax = resp.main.temp_max
                 city.humidity = resp.main.humidity
                 city.windSpeed = resp.wind?.speed
                 city.condition = resp.weather.first?.description
@@ -144,8 +144,8 @@ final class WeatherListViewModel: ObservableObject {
         do {
             let resp = try await api.fetchCurrentWeather(lat: city.lat, lon: city.lon)
             city.temperature = resp.main.temp
-            city.temperatureMin = resp.main.temp_min ?? city.temperatureMin
-            city.temperatureMax = resp.main.temp_max ?? city.temperatureMax
+            city.temperatureMin = resp.main.temp_min
+            city.temperatureMax = resp.main.temp_max
             city.humidity = resp.main.humidity
             city.windSpeed = resp.wind?.speed
             city.condition = resp.weather.first?.description
@@ -155,24 +155,6 @@ final class WeatherListViewModel: ObservableObject {
             loadSavedCities()
         } catch {
             errorMessage = "Failed to refresh \(city.name): \(error)"
-        }
-        isLoading = false
-    }
-
-    /// Deletes all saved cities and re-seeds defaults (useful for testing / UI reload).
-    func resetAndReseed() async {
-        guard let ctx = modelContext else { return }
-        isLoading = true
-        errorMessage = nil
-        do {
-            let fetch = FetchDescriptor<City>()
-            let existing = try ctx.fetch(fetch)
-            for c in existing { ctx.delete(c) }
-            try ctx.save()
-            await loadIfNeeded()
-        } catch {
-            print("Failed to reset cities: \(error)")
-            errorMessage = "Failed to reset cities: \(error)"
         }
         isLoading = false
     }
