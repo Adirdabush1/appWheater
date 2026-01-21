@@ -4,6 +4,7 @@ import SwiftData
 struct WeatherDetailView: View {
     @Bindable var city: City
     @ObservedObject var viewModel: WeatherListViewModel
+
     @State private var isRefreshing = false
     @StateObject private var network = NetworkMonitor.shared
 
@@ -16,7 +17,9 @@ struct WeatherDetailView: View {
                     .background(Color.yellow.opacity(0.2))
             }
 
-            Text(city.name).font(.largeTitle).bold()
+            Text(city.name)
+                .font(.largeTitle)
+                .bold()
 
             if let temp = city.temperature {
                 Text(String(format: "%.0f°", temp))
@@ -32,8 +35,8 @@ struct WeatherDetailView: View {
                             switch phase {
                             case .empty:
                                 ProgressView().frame(width: 56, height: 56)
-                            case .success(let img):
-                                img.resizable().scaledToFit().frame(width: 56, height: 56)
+                            case .success(let image):
+                                image.resizable().scaledToFit().frame(width: 56, height: 56)
                             case .failure:
                                 Image(systemName: "cloud").resizable().scaledToFit().frame(width: 56, height: 56)
                             @unknown default:
@@ -63,19 +66,24 @@ struct WeatherDetailView: View {
 
             Button(action: {
                 Task {
-                    await MainActor.run {
-                        isRefreshing = true
-                    }
+                    // Set visible refreshing state on main actor
+                    await MainActor.run { isRefreshing = true }
 
-                    async let networkRefresh: Void = viewModel.refresh(city: city)
-                    // minimum visible refresh delay: 1.5 seconds
+                    // Start a minimum visible delay in parallel (1.5s)
                     async let minimumDelay: Void = Task.sleep(nanoseconds: 1_500_000_000)
 
-                    _ = await (try? await networkRefresh, try? await minimumDelay)
-
+                    // Call the view model refresh on the MainActor to avoid passing the City across concurrency
                     await MainActor.run {
-                        isRefreshing = false
+                        // call is async but we're already awaiting it here
+                        Task {
+                            await viewModel.refresh(city: city)
+                        }
                     }
+
+                    // Wait for the minimum delay to finish
+                    _ = await (try? await minimumDelay)
+
+                    await MainActor.run { isRefreshing = false }
                 }
             }) {
                 HStack(spacing: 10) {
@@ -95,6 +103,7 @@ struct WeatherDetailView: View {
         }
         .padding()
         .navigationTitle(city.name)
+        // Show an alert if the view model reports an error
         .alert("Error", isPresented: Binding(get: { viewModel.errorMessage != nil }, set: { if !$0 { viewModel.errorMessage = nil } })) {
             Button("OK") { viewModel.errorMessage = nil }
         } message: {
