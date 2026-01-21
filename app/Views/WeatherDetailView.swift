@@ -5,6 +5,7 @@ struct WeatherDetailView: View {
     @Bindable var city: City
     @ObservedObject var viewModel: WeatherListViewModel
     @State private var isRefreshing = false
+    @State private var animateIcon = false
 
     var body: some View {
         VStack(spacing: 12) {
@@ -18,10 +19,34 @@ struct WeatherDetailView: View {
             }
 
             if let condition = city.condition {
-                Text(condition.capitalized)
+                HStack(spacing: 12) {
+                    if let icon = city.icon, let url = URL(string: "https://openweathermap.org/img/wn/\(icon)@2x.png") {
+                        AsyncImage(url: url) { phase in
+                            switch phase {
+                            case .empty:
+                                ProgressView()
+                                    .frame(width: 56, height: 56)
+                            case .success(let img):
+                                img.resizable()
+                                    .scaledToFit()
+                                    .frame(width: 56, height: 56)
+                                    .rotationEffect(animateIcon ? Angle.degrees(360) : Angle.degrees(0))
+                                    .scaleEffect(animateIcon ? 1.05 : 1.0)
+                                    .animation(.linear(duration: 1.2), value: animateIcon)
+                            case .failure:
+                                Image(systemName: "cloud")
+                                    .resizable().scaledToFit().frame(width: 56, height: 56)
+                            @unknown default:
+                                EmptyView()
+                            }
+                        }
+                    }
+                    Text(condition.capitalized)
+                        .font(.title3)
+                }
             }
 
-            HStack(spacing: 20) {
+            HStack(spacing: 24) {
                 if let tmax = city.temperatureMax {
                     VStack { Text("Max").font(.caption); Text(String(format: "%.0f°", tmax)) }
                 }
@@ -47,12 +72,23 @@ struct WeatherDetailView: View {
 
             Button(action: {
                 Task {
+                    // start a short 1.5s animation on the icon for visible feedback
                     isRefreshing = true
+                    animateIcon = true
+
+                    // Stop the icon animation after ~1.5s regardless of network
+                    Task {
+                        try? await Task.sleep(nanoseconds: 1_500_000_000)
+                        await MainActor.run {
+                            animateIcon = false
+                        }
+                    }
+
                     await viewModel.refresh(city: city)
                     isRefreshing = false
                 }
             }) {
-                HStack {
+                HStack(spacing: 10) {
                     if isRefreshing {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle())
