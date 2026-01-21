@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct WeatherDetailView: View {
-    @ObservedObject var city: City
+    @Bindable var city: City
     @ObservedObject var viewModel: WeatherListViewModel
     @State private var isRefreshing = false
 
