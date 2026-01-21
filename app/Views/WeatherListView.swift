@@ -72,6 +72,12 @@ struct WeatherListView: View {
                     .disabled(viewModel.isLoading)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { Task { await viewModel.resetAndReseed() } }) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                    }
+                    .disabled(viewModel.isLoading)
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
                     NavigationLink(destination: AddCityView(viewModel: viewModel)) {
                         Image(systemName: "plus")
                     }

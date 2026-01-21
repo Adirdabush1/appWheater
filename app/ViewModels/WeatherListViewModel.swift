@@ -18,7 +18,6 @@ final class WeatherListViewModel: ObservableObject {
     }
 
     convenience init() {
-        // Use centralized Config API key provided by the user
         let api = WeatherAPI(apiKey: Config.openWeatherAPIKey)
         self.init(api: api, context: nil)
     }
@@ -35,7 +34,6 @@ final class WeatherListViewModel: ObservableObject {
             let fetch = FetchDescriptor<City>()
             let results = try ctx.fetch(fetch)
             self.cities = results
-
             // If empty, try to seed from configured favorite IDs
             if self.cities.isEmpty {
                 let favIDs = Config.favoriteCityIDs
@@ -98,23 +96,17 @@ final class WeatherListViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Networking helpers
+
     /// Import favorite OpenWeather city IDs, persist them and seed local store with their current weather.
     func importFavoriteIDs(_ ids: [Int]) async {
         guard !ids.isEmpty, let ctx = modelContext else { return }
         isLoading = true
         errorMessage = nil
-        // Persist selection so future launches will seed automatically
         Config.persistFavoriteIDs(ids)
         do {
             let responses = try await api.fetchGroup(ids: ids)
-            // remove any existing cities with the same coordinates or names? For simplicity, just insert new entries
-            for resp in responses {
-                // Avoid duplicates by name+coord
-                let fetch = FetchDescriptor<City>().where(\.<String> = 0) // placeholder to satisfy compiler
-            }
-            // We'll insert freshly (but avoid duplicate names)
-            // Simple dedupe: collect existing names
-            let existingNames = Set(ctx.fetch(FetchDescriptor<City>()).map { $0.name })
+            let existingNames = Set((try? ctx.fetch(FetchDescriptor<City>()).map { $0.name }) ?? [])
             for resp in responses {
                 if existingNames.contains(resp.name) { continue }
                 let city = City(name: resp.name, country: resp.sys?.country, lat: resp.coord.lat, lon: resp.coord.lon)
@@ -148,16 +140,21 @@ final class WeatherListViewModel: ObservableObject {
             city.icon = resp.weather.first?.icon
             city.lastUpdated = Date()
             try ctx.save()
-            let fetch = FetchDescriptor<City>()
-            let results = try ctx.fetch(fetch)
-            self.cities = results
+            loadSavedCities()
         } catch {
             errorMessage = "Failed to refresh \(city.name): \(error)"
         }
         isLoading = false
     }
 
-    /// Seed a handful of well-known cities using coordinates and the current weather endpoint.
+    // MARK: - Geocoding / Search
+
+    func searchCities(query: String, limit: Int) async throws -> [GeocodingResult] {
+        try await api.geocode(city: query, limit: limit)
+    }
+
+    // MARK: - Seeding defaults
+
     func seedDefaultCities() async {
         guard let ctx = modelContext else { return }
         isLoading = true
@@ -214,6 +211,44 @@ final class WeatherListViewModel: ObservableObject {
             loadSavedCities()
         } catch {
             print("Failed to save seeded cities: \(error)")
+        }
+        isLoading = false
+    }
+
+    /// Ensure data is loaded: if no cities exist, try import by favorite IDs, then seed defaults.
+    func loadIfNeeded() async {
+        guard let ctx = modelContext else { return }
+        if let fetched = try? ctx.fetch(FetchDescriptor<City>()), !fetched.isEmpty {
+            return
+        }
+
+        let favIDs = Config.favoriteCityIDs
+        if !favIDs.isEmpty {
+            await importFavoriteIDs(favIDs)
+        }
+
+        if let recheck = try? ctx.fetch(FetchDescriptor<City>()), recheck.isEmpty {
+            await seedDefaultCities()
+        }
+    }
+
+    /// Deletes all saved cities and re-seeds defaults (useful for testing / UI reload).
+    func resetAndReseed() async {
+        guard let ctx = modelContext else { return }
+        isLoading = true
+        errorMessage = nil
+        do {
+            let fetch = FetchDescriptor<City>()
+            let existing = try ctx.fetch(fetch)
+            for c in existing {
+                ctx.delete(c)
+            }
+            try ctx.save()
+            // Now loadIfNeeded will seed defaults because store is empty
+            await loadIfNeeded()
+        } catch {
+            print("Failed to reset cities: \(error)")
+            errorMessage = "Failed to reset cities: \(error)"
         }
         isLoading = false
     }
